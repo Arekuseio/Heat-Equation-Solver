@@ -1,6 +1,6 @@
 #pragma once
 
-
+#define _USE_MATH_DEFINES
 #include <string>
 #include <vector>
 #include <cmath>

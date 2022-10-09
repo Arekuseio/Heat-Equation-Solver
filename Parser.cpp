@@ -4,10 +4,10 @@
 std::string Parser::parse_token() {
 	while (std::isspace(*input)) ++input;
 
-	if (std::isdigit(*input) || *input == 'x' || *input == 't') {
+	if (std::isdigit(*input) || *input == 'x' || *input == 't' || *input == 'e') {
 		std::string number;
 		while (std::isdigit(*input) || *input == '.' || *input == 'x'
-			|| *input == 't') number.push_back(*input++);
+			|| *input == 't' || *input == 'e') number.push_back(*input++);
 		return number;
 	}
 
@@ -33,7 +33,7 @@ Expression Parser::parse_simple_expression() {
 		return result;
 	}
 
-	if (std::isdigit(token[0]) || token[0] == 'x' || token[0] == 't')
+	if (std::isdigit(token[0]) || token[0] == 'x' || token[0] == 't' || token[0] == 'e')
 		return Expression(token);
 
 	return Expression(token, parse_simple_expression());
@@ -96,6 +96,7 @@ double eval(const Expression& e, double x, double t) {
 	case 0:
 		if (e.token == "x") return x;
 		if (e.token == "t") return t;
+		if (e.token == "e") return M_E;
 		return strtod(e.token.c_str(), nullptr);
 	}
 
