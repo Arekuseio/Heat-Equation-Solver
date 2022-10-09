@@ -16,20 +16,25 @@ void Solver::addParams(int N_x, int N_t) {
 	params.push_back({ N_x, N_t });
 }
 
+int Solver::getAnswersSize() const {
+	return answers.size();
+}
+
 void Solver::solveAll() {
 	for (auto& p : params) {
 		Solve(p.first, p.second);
 	}
 }
 
-void Solver::printResult(std::ofstream& out, int i) const {
+void Solver::printResult(std::ostream& out, int i) const {
 	auto& A = answers[i].first;
 
 	int N_x = params[i].first;
 	int N_t = params[i].second;
 	const double thau = 1.f / N_t;
 	const double h = 1.f / N_x;
-
+	
+	out << "My approximation:" << '\n' << "x\\t |";
 
 	out << std::setfill('_') << std::setw(10) << 0;
 	for (size_t i = 1; i < N_t + 1; ++i) {
@@ -72,8 +77,8 @@ void Solver::Solve(int N_x, int N_t) {
 	}
 
 	for (size_t j = 0; j < answer[0].size(); ++j) {
-		answer[0][j] = mu1.calc(j * thau, 0);
-		answer[N_x][j] = mu2.calc(j * thau, 0);
+		answer[0][j] = mu1.calc(0, j * thau);
+		answer[N_x][j] = mu2.calc(0, j * thau);
 	}
 	//----------------------------------
 
@@ -100,7 +105,7 @@ void Solver::Solve(int N_x, int N_t) {
 
 	auto end = std::chrono::steady_clock::now();
 	auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-	std::cout << "Done! Time: " << time.count() << '\n';
+	std::cout << "Done! Time: " << time.count() << " ms." << '\n';
 
 	answers.push_back({ answer, time });
 
@@ -173,7 +178,27 @@ double Compare(std::vector<std::vector<double>> myanswer,
 	return max_diff;
 }
 
+void test1() {
+	double a = 0.014;
+	const char* f = "-6.0 * 0.014 * (x**2) + x + 2 * 0.014 + 10 * (t**4) - (e**x) - 0.014 * t * (e**x)";
+	const char* mu = "-0.5 * (x**4) + (x**2) - x";
+	const char* mu1 = "2.0 * (t**5) - t";
+	const char* mu2 = "t + 2.0 * (t**5) - e * t - 0.5";
+	const char* d2f = "-12.0 * 0.014 - (e**x) * (1 - 0.014 * t)";
+	Solver A(f, d2f, a, mu, mu1, mu2);
+	for (int i = 100; i >= 10; i -= 10) {
+		A.addParams(i, i);
+	}
+	A.solveAll();
+	std::ofstream out("answer.txt");
+	if (out.is_open()) {
+		for (int i = 0; i < A.getAnswersSize(); ++i) {
+			A.printResult(out, i);
+		}
+	}
+}
 
 int main() {
+	test1();
 	return 0;
 }

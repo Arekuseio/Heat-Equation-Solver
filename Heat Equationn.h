@@ -6,6 +6,7 @@
 #include <chrono>
 #include <fstream>
 #include <iomanip>
+#include <sstream>
 #include "Function.h"
 #include <stdexcept>
 #include <cmath>
@@ -40,7 +41,8 @@ public:
 
 	void addParams(int N_x, int N_t);
 	void solveAll();
-	void printResult(std::ofstream& out, int i) const;
+	void printResult(std::ostream& out, int i) const;
+	int getAnswersSize() const;
 private:
 	// f + h^2/12 * f''(x, t + thau/2)
 	double half_f(double x, double t, double thau, double h) const;
