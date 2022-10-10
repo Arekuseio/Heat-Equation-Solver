@@ -12,7 +12,7 @@ Solver::Solver(const char* func, const char* d2func, double a,
 			   const char* mu, const char* mu1, const char* mu2) 
 			: f(func), d2f(d2func), a(a), mu(mu), mu1(mu1), mu2(mu2) { }
 
-void Solver::addParams(int N_x, int N_t) {
+void Solver::addParams(size_t N_x, size_t N_t) {
 	params.push_back({ N_x, N_t });
 }
 
@@ -26,27 +26,27 @@ void Solver::solveAll() {
 	}
 }
 
-void Solver::printResult(std::ostream& out, int i) const {
+void Solver::printResult(std::ostream& out, size_t i) const {
 	auto& A = answers[i].first;
 
-	int N_x = params[i].first;
-	int N_t = params[i].second;
+	size_t N_x = params[i].first;
+	size_t N_t = params[i].second;
 	const double thau = 1.f / N_t;
 	const double h = 1.f / N_x;
 	
 	out << "My approximation:" << '\n' << "x\\t |";
 
 	out << std::setfill('_') << std::setw(10) << 0;
-	for (size_t i = 1; i < N_t + 1; ++i) {
-		out << std::setw(11) << i * thau;
+	for (size_t k = 1; k < N_t + 1; ++k) {
+		out << std::setw(11) << k * thau;
 	}
 	out << '\n';
 	out << std::setprecision(4);
 	out << std::setfill(' ');
-	for (size_t i = 0; i < A.size(); ++i) {
-		out << std::setw(4) << i * h << "|";
-		for (size_t j = 0; j < A[i].size(); ++j) {
-			out << std::setw(10) << A[i][j] << " ";
+	for (size_t k = 0; k < A.size(); ++k) {
+		out << std::setw(4) << k * h << "|";
+		for (size_t j = 0; j < A[k].size(); ++j) {
+			out << std::setw(10) << A[k][j] << " ";
 		}
 		out << '\n';
 	}
@@ -54,7 +54,7 @@ void Solver::printResult(std::ostream& out, int i) const {
 	out << "Error: " << errors[i] << '\n';
 }
 
-void Solver::Solve(int N_x, int N_t) {
+void Solver::Solve(size_t N_x, size_t N_t) {
 	std::cout << "Solving for N_x = " << N_x << " , N_t = " << N_t << '\n';
 	auto start = std::chrono::steady_clock::now();
 
@@ -82,7 +82,7 @@ void Solver::Solve(int N_x, int N_t) {
 	}
 	//----------------------------------
 
-	std::vector<double> u_0(N_x - 1);
+	std::vector<double> u_0;
 	std::vector<double> v_j(N_x - 1, 0.f);
 	for (size_t j = 1; j < N_t + 1; ++j) {
 
@@ -105,12 +105,13 @@ void Solver::Solve(int N_x, int N_t) {
 
 	auto end = std::chrono::steady_clock::now();
 	auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-	std::cout << "Done! Time: " << time.count() << " ms." << '\n';
-
-	answers.push_back({ answer, time });
-
 	double error = Compare(answer, N_x, N_t, thau, h);
+
+	std::cout << "Done! Time: " << time.count() << " ms. "
+			<< "Error: " << error << '\n';
+
 	errors.push_back(error);
+	answers.push_back({ std::move(answer), time });
 }
 
 
@@ -134,7 +135,7 @@ std::vector<double> SolveTridiag(std::vector<std::vector<double>>& A, std::vecto
 	}
 
 	u[A.size() - 1] = b[A.size() - 1];
-	for (int32_t i = A.size() - 2; i >= 0; --i) {
+	for (int32_t i = static_cast<int32_t>(A.size()) - 2; i >= 0; --i) {
 		u[i] = b[i] - a[i] * u[i + 1];
 	}
 
@@ -160,7 +161,7 @@ void Solver::initA(std::vector<std::vector<double>>& A, int N_x,
 }
 
 double Compare(std::vector<std::vector<double>> myanswer, 
-			int N_x, int N_t, double thau, double h) {
+			size_t N_x, size_t N_t, double thau, double h) {
 
 	double max_diff = 0.f;
 	double diff;
@@ -186,6 +187,7 @@ void test1() {
 	const char* mu2 = "t + 2.0 * (t**5) - e * t - 0.5";
 	const char* d2f = "-12.0 * 0.014 - (e**x) * (1 - 0.014 * t)";
 	Solver A(f, d2f, a, mu, mu1, mu2);
+	A.addParams(1000, 1000);
 	for (int i = 100; i >= 10; i -= 10) {
 		A.addParams(i, i);
 	}
