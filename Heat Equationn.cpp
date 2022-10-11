@@ -142,19 +142,26 @@ std::vector<double> SolveTridiag(std::vector<std::vector<double>>& A, std::vecto
 	return u;
 }
 
-void Solver::initA(std::vector<std::vector<double>>& A, int N_x, 
+void Solver::initA(std::vector<std::vector<double>>& A, size_t N_x, 
 					double thau, double h, double sigma) const {
 	A.resize(N_x - 1);
 
-	for (int i = 0; i < N_x - 1; ++i) {
-		A[i].resize(N_x - 1, 0.f);
+	for (auto& a : A) {
+		a.resize(N_x - 1, 0.f);
+	}
 
-		for (int j = 0; j < N_x - 1; ++j) {
-			if (j == i) {
-				A[i][j] = (1.f / thau + 2.f * sigma * a / (h * h));
+	for (int j = 0; j < N_x - 1; ++j) {
+		A[j][j] = (1.f / thau + 2.f * sigma * a / (h * h));
+		if (j == 0) {
+			A[j][j + 1] = -a * sigma / (h * h);
+		}
+		else {
+			if (j == N_x - 2) {
+				A[j][j - 1] = -a * sigma / (h * h);
 			}
-			if (abs(i - j) == 1) {
-				A[i][j] = -a * sigma / (h * h);
+			else {
+				A[j][j + 1] = -a * sigma / (h * h);
+				A[j][j - 1] = -a * sigma / (h * h);
 			}
 		}
 	}

@@ -52,5 +52,5 @@ private:
 	void Solve(size_t N_x, size_t N_t);
 
 	// Initializing matrix of linear operator
-	void initA(std::vector<std::vector<double>>& A, int N_x, double thau, double h, double sigma) const;
+	void initA(std::vector<std::vector<double>>& A, size_t N_x, double thau, double h, double sigma) const;
 };
