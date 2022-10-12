@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <chrono>
+#include <future>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -18,6 +19,14 @@ using _parameteres = std::pair<size_t, size_t>;
 
 // Solving Au=f for tridiagonal matrix A
 std::vector<double> SolveTridiag(std::vector<std::vector<double>>& A, std::vector<double>& f);
+
+
+// Solving tridiagonal matrix system using two threads
+std::vector<double> SolveTridiagDoubleThread(std::vector<std::vector<double>>& A, std::vector<double>& f);
+
+std::pair<std::vector<double>, std::vector<double>> CalcCoeffsRight(std::vector<std::vector<double>>& A, size_t p, std::vector<double>& f);
+
+std::pair <std::vector<double>, std::vector<double>> CalcCoeffsLeft(std::vector<std::vector<double>>& A, size_t p, std::vector<double>& f);
 
 // Real solution function
 inline double u(double x, double t);
@@ -44,7 +53,7 @@ public:
 	void addParams(size_t N_x, size_t N_t);
 	void solveAll();
 	void printResult(std::ostream& out, size_t i) const;
-	int getAnswersSize() const;
+	size_t getAnswersSize() const;
 private:
 	// f + h^2/12 * f''(x, t + thau/2)
 	double half_f(double x, double t, double thau, double h) const;

@@ -16,7 +16,7 @@ void Solver::addParams(size_t N_x, size_t N_t) {
 	params.push_back({ N_x, N_t });
 }
 
-int Solver::getAnswersSize() const {
+size_t Solver::getAnswersSize() const {
 	return answers.size();
 }
 
@@ -114,6 +114,76 @@ void Solver::Solve(size_t N_x, size_t N_t) {
 	answers.push_back({ std::move(answer), time });
 }
 
+std::vector<double> SolveTridiagDoubleThread(std::vector<std::vector<double>>& A, std::vector<double>& f) {
+
+	if (A.size() != f.size()) throw std::runtime_error("Mismatch of dimensions");
+
+	std::vector<double> u(A.size());
+
+	size_t p = A.size() / 2;
+
+	std::future<std::pair<std::vector<double>, std::vector<double>>> f1 = std::async(CalcCoeffsRight, ref(A), p, ref(f));
+	std::future<std::pair<std::vector<double>, std::vector<double>>> f2 = std::async(CalcCoeffsLeft, ref(A), p, ref(f));
+
+	auto p1 = f1.get();
+	std::vector<double> a1 = move(p1.first);
+	std::vector<double> b1 = move(p1.second);
+
+	auto p2 = f2.get();
+	std::vector<double> a2 = move(p2.first);
+	std::vector<double> b2 = move(p2.second);
+
+	u[p - 1] = (b1[b1.size() - 1] - a1[a1.size() - 1] * b2[0]) / (1.f - a1[a1.size() - 1] * b1[0]);
+
+	std::future<void> f3 = std::async([&u, &b1, &a1, p] {
+		for (int64_t i = (int64_t)p - 2; i >= 0; --i) {
+			u[i] = b1[i] - a1[i] * u[i + 1];
+		}
+		}
+	);
+
+	std::future<void> f4 = std::async([&u, &b2, &a2, p] {
+		for (size_t i = p; i < u.size(); ++i) {
+			u[i] = b2[i - p] - a2[i - p] * u[i - 1];
+		}
+		}
+	);
+	f3.get();
+	f4.get();
+
+	return u;
+}
+
+std::pair <std::vector<double>, std::vector<double>> CalcCoeffsRight(std::vector<std::vector<double>>& A, size_t p, std::vector<double>& f) {
+	std::vector<double> a(p);
+	std::vector<double> b(p);
+
+	a[0] = A[0][1] / A[0][0];
+	b[0] = f[0] / A[0][0];
+
+	for (size_t i = 1; i < p; ++i) {
+		a[i] = A[i][i + 1] / (A[i][i] - A[i][i - 1] * a[i - 1]);
+		b[i] = (f[i] - A[i][i - 1] * b[i - 1]) / (A[i][i] - A[i][i - 1] * a[i - 1]);
+	}
+
+	return { a, b };
+}
+
+std::pair <std::vector<double>, std::vector<double>> CalcCoeffsLeft(std::vector<std::vector<double>>& A, size_t p, std::vector<double>& f) {
+	std::vector<double> a(A.size() - p);
+	std::vector<double> b(A.size() - p);
+
+	a[a.size() - 1] = A[A.size() - 1][A.size() - 2] / A[A.size() - 1][A.size() - 1];
+	b[b.size() - 1] = f[f.size() - 1] / A[A.size() - 1][A.size() - 1];
+
+	for (int64_t i = a.size() - 2; i >= 0; --i) {
+		a[i] = A[i + p][i + p - 1] / (A[i + p][i + p] - A[i + p][i + p + 1] * a[i + 1]);
+		b[i] = (f[p + i] - A[p + i][p + i + 1] * b[i + 1]) / (A[p + i][p + i] - A[p + i][p + i + 1] * a[i + 1]);
+	}
+
+
+	return { a, b };
+}
 
 std::vector<double> SolveTridiag(std::vector<std::vector<double>>& A, std::vector<double>& f) {
 
