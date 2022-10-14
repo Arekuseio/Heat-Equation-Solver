@@ -63,8 +63,7 @@ void Solver::Solve(size_t N_x, size_t N_t) {
 	const double sigma = 0.5 - h * h / (12.f * a * thau);
 
 	// Initializing matrix for linear operator
-	std::vector<std::vector<double>> A2;
-	initA(A2, N_x, thau, h, sigma);
+	SymmetricTridiag A2((1.f / thau + 2.f * sigma * a / (h * h)), -a * sigma / (h * h), N_x - 1);
 
 	// Initializing answer matrix with boundary conditions
 	std::vector<std::vector<double>> answer(N_x + 1);
@@ -96,7 +95,7 @@ void Solver::Solve(size_t N_x, size_t N_t) {
 		v_j[v_j.size() - 1] -= -a * sigma / (h * h) * answer[N_x][j];
 		//-----------------------------------------------------------
 
-		u_0 = SolveTridiag(A2, v_j);
+		u_0 = SolveTridiagDoubleThread(A2, v_j);
 
 		for (size_t k = 0; k < u_0.size(); ++k) {
 			answer[k + 1][j] = u_0[k];
@@ -114,7 +113,8 @@ void Solver::Solve(size_t N_x, size_t N_t) {
 	answers.push_back({ std::move(answer), time });
 }
 
-std::vector<double> SolveTridiagDoubleThread(std::vector<std::vector<double>>& A, std::vector<double>& f) {
+
+std::vector<double> SolveTridiagDoubleThread(SymmetricTridiag& A, std::vector<double>& f) {
 
 	if (A.size() != f.size()) throw std::runtime_error("Mismatch of dimensions");
 
@@ -122,8 +122,8 @@ std::vector<double> SolveTridiagDoubleThread(std::vector<std::vector<double>>& A
 
 	size_t p = A.size() / 2;
 
-	std::future<std::pair<std::vector<double>, std::vector<double>>> f1 = std::async(CalcCoeffsRight, ref(A), p, ref(f));
-	std::future<std::pair<std::vector<double>, std::vector<double>>> f2 = std::async(CalcCoeffsLeft, ref(A), p, ref(f));
+	auto f1 = std::async(CalcCoeffsRight, std::ref<SymmetricTridiag>(A), p, ref(f));
+	auto f2 = std::async(CalcCoeffsLeft, std::ref<SymmetricTridiag>(A), p, ref(f));
 
 	auto p1 = f1.get();
 	std::vector<double> a1 = move(p1.first);
@@ -133,18 +133,18 @@ std::vector<double> SolveTridiagDoubleThread(std::vector<std::vector<double>>& A
 	std::vector<double> a2 = move(p2.first);
 	std::vector<double> b2 = move(p2.second);
 
-	u[p - 1] = (b1[b1.size() - 1] - a1[a1.size() - 1] * b2[0]) / (1.f - a1[a1.size() - 1] * b1[0]);
+	u[p - 1] = (b1[b1.size() - 1] + a1[a1.size() - 1] * b2[0]) / (1.f - a1[a1.size() - 1] * a2[0]);
 
 	std::future<void> f3 = std::async([&u, &b1, &a1, p] {
 		for (int64_t i = (int64_t)p - 2; i >= 0; --i) {
-			u[i] = b1[i] - a1[i] * u[i + 1];
+			u[i] = b1[i] + a1[i] * u[i + 1];
 		}
 		}
 	);
 
 	std::future<void> f4 = std::async([&u, &b2, &a2, p] {
 		for (size_t i = p; i < u.size(); ++i) {
-			u[i] = b2[i - p] - a2[i - p] * u[i - 1];
+			u[i] = b2[i - p] + a2[i - p] * u[i - 1];
 		}
 		}
 	);
@@ -154,38 +154,38 @@ std::vector<double> SolveTridiagDoubleThread(std::vector<std::vector<double>>& A
 	return u;
 }
 
-std::pair <std::vector<double>, std::vector<double>> CalcCoeffsRight(std::vector<std::vector<double>>& A, size_t p, std::vector<double>& f) {
+std::pair <std::vector<double>, std::vector<double>> CalcCoeffsRight(SymmetricTridiag& A, size_t p, std::vector<double>& f) {
 	std::vector<double> a(p);
 	std::vector<double> b(p);
 
-	a[0] = A[0][1] / A[0][0];
+	a[0] = -A[0][1] / A[0][0];
 	b[0] = f[0] / A[0][0];
 
 	for (size_t i = 1; i < p; ++i) {
-		a[i] = A[i][i + 1] / (A[i][i] - A[i][i - 1] * a[i - 1]);
-		b[i] = (f[i] - A[i][i - 1] * b[i - 1]) / (A[i][i] - A[i][i - 1] * a[i - 1]);
+		a[i] = (-A[i][i + 1]) / (A[i][i] + A[i][i - 1] * a[i - 1]);
+		b[i] = (f[i] - A[i][i - 1] * b[i - 1]) / (A[i][i] + A[i][i - 1] * a[i - 1]);
 	}
 
 	return { a, b };
 }
 
-std::pair <std::vector<double>, std::vector<double>> CalcCoeffsLeft(std::vector<std::vector<double>>& A, size_t p, std::vector<double>& f) {
+std::pair <std::vector<double>, std::vector<double>> CalcCoeffsLeft(SymmetricTridiag& A, size_t p, std::vector<double>& f) {
 	std::vector<double> a(A.size() - p);
 	std::vector<double> b(A.size() - p);
 
-	a[a.size() - 1] = A[A.size() - 1][A.size() - 2] / A[A.size() - 1][A.size() - 1];
+	a[a.size() - 1] = (- A[A.size() - 1][A.size() - 2]) / A[A.size() - 1][A.size() - 1];
 	b[b.size() - 1] = f[f.size() - 1] / A[A.size() - 1][A.size() - 1];
 
 	for (int64_t i = a.size() - 2; i >= 0; --i) {
-		a[i] = A[i + p][i + p - 1] / (A[i + p][i + p] - A[i + p][i + p + 1] * a[i + 1]);
-		b[i] = (f[p + i] - A[p + i][p + i + 1] * b[i + 1]) / (A[p + i][p + i] - A[p + i][p + i + 1] * a[i + 1]);
+		a[i] = (-A[i + p][i + p - 1]) / (A[i + p][i + p] + A[i + p][i + p + 1] * a[i + 1]);
+		b[i] = (f[p + i] - A[p + i][p + i + 1] * b[i + 1]) / (A[p + i][p + i] + A[p + i][p + i + 1] * a[i + 1]);
 	}
 
 
 	return { a, b };
 }
 
-std::vector<double> SolveTridiag(std::vector<std::vector<double>>& A, std::vector<double>& f) {
+std::vector<double> SolveTridiag(SymmetricTridiag& A, std::vector<double>& f) {
 
 	if (A.size() != f.size()) throw std::runtime_error("Mismatch of dimensions");
 
@@ -210,31 +210,6 @@ std::vector<double> SolveTridiag(std::vector<std::vector<double>>& A, std::vecto
 	}
 
 	return u;
-}
-
-void Solver::initA(std::vector<std::vector<double>>& A, size_t N_x, 
-					double thau, double h, double sigma) const {
-	A.resize(N_x - 1);
-
-	for (auto& a : A) {
-		a.resize(N_x - 1, 0.f);
-	}
-
-	for (int j = 0; j < N_x - 1; ++j) {
-		A[j][j] = (1.f / thau + 2.f * sigma * a / (h * h));
-		if (j == 0) {
-			A[j][j + 1] = -a * sigma / (h * h);
-		}
-		else {
-			if (j == N_x - 2) {
-				A[j][j - 1] = -a * sigma / (h * h);
-			}
-			else {
-				A[j][j + 1] = -a * sigma / (h * h);
-				A[j][j - 1] = -a * sigma / (h * h);
-			}
-		}
-	}
 }
 
 double Compare(std::vector<std::vector<double>> myanswer, 
@@ -264,7 +239,6 @@ void test1() {
 	const char* mu2 = "t + 2.0 * (t**5) - e * t - 0.5";
 	const char* d2f = "-12.0 * 0.014 - (e**x) * (1 - 0.014 * t)";
 	Solver A(f, d2f, a, mu, mu1, mu2);
-	A.addParams(1000, 1000);
 	for (int i = 100; i >= 10; i -= 10) {
 		A.addParams(i, i);
 	}

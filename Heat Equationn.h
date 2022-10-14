@@ -3,6 +3,7 @@
 #define _USE_MATH_DEFINES
 
 #include "Function.h"
+#include "SymmetricTridiag.h"
 
 #include <iostream>
 #include <chrono>
@@ -18,15 +19,15 @@ using _answer = std::pair<std::vector<std::vector<double>>, std::chrono::millise
 using _parameteres = std::pair<size_t, size_t>;
 
 // Solving Au=f for tridiagonal matrix A
-std::vector<double> SolveTridiag(std::vector<std::vector<double>>& A, std::vector<double>& f);
+std::vector<double> SolveTridiag(SymmetricTridiag& A, std::vector<double>& f);
 
 
 // Solving tridiagonal matrix system using two threads
-std::vector<double> SolveTridiagDoubleThread(std::vector<std::vector<double>>& A, std::vector<double>& f);
+std::vector<double> SolveTridiagDoubleThread(SymmetricTridiag& A, std::vector<double>& f);
 
-std::pair<std::vector<double>, std::vector<double>> CalcCoeffsRight(std::vector<std::vector<double>>& A, size_t p, std::vector<double>& f);
+std::pair<std::vector<double>, std::vector<double>> CalcCoeffsRight(SymmetricTridiag& A, size_t p, std::vector<double>& f);
 
-std::pair <std::vector<double>, std::vector<double>> CalcCoeffsLeft(std::vector<std::vector<double>>& A, size_t p, std::vector<double>& f);
+std::pair <std::vector<double>, std::vector<double>> CalcCoeffsLeft(SymmetricTridiag& A, size_t p, std::vector<double>& f);
 
 // Real solution function
 inline double u(double x, double t);
@@ -59,7 +60,4 @@ private:
 	double half_f(double x, double t, double thau, double h) const;
 
 	void Solve(size_t N_x, size_t N_t);
-
-	// Initializing matrix of linear operator
-	void initA(std::vector<std::vector<double>>& A, size_t N_x, double thau, double h, double sigma) const;
 };
