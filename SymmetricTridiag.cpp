@@ -1,5 +1,4 @@
 #include "SymmetricTridiag.h"
-#include <algorithm>
 
 
 size_t SymmetricTridiag::size() const {

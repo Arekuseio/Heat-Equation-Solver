@@ -1,7 +1,6 @@
-
-
 #pragma once
 
+#include <algorithm>
 
 class SymmetricTridiag {
 	size_t n = 0;
