@@ -233,15 +233,16 @@ double Compare(std::vector<std::vector<double>> myanswer,
 
 void test1() {
 	double a = 0.014;
-	const char* f = "-6.0 * 0.014 * (x**2) + x + 2 * 0.014 + 10 * (t**4) - (e**x) - 0.014 * t * (e**x)";
+	const char* f = "6.0 * 0.014 * (x**2) + x - 2 * 0.014 + 10 * (t**4) - (e**x) + 0.014 * t * (e**x)";
 	const char* mu = "-0.5 * (x**4) + (x**2) - x";
 	const char* mu1 = "2.0 * (t**5) - t";
 	const char* mu2 = "t + 2.0 * (t**5) - e * t - 0.5";
-	const char* d2f = "-12.0 * 0.014 - (e**x) * (1 - 0.014 * t)";
+	const char* d2f = "12.0 * 0.014 - (e**x) * (1 - 0.014 * t)";
 	Solver A(f, d2f, a, mu, mu1, mu2);
 	for (int i = 100; i >= 10; i -= 10) {
 		A.addParams(i, i);
 	}
+	A.addParams(1000, 1000);
 	A.solveAll();
 	std::ofstream out("answer.txt");
 	if (out.is_open()) {
